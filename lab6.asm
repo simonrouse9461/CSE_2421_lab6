@@ -6,9 +6,87 @@ USE32         ; tell nasm to assemble 32 bit code
 global _start ; export the start symbol for our program
 _start:       ; tell the linker where our program begins
     ; beginning of program
+							; set up stack frame
+    mov  ebp, esp           ; set up a new stack frame
 
 	; my code here
+							; ebx for i, ecx for is_prime
+    call read_integer		; read integer and save to eax
+	push eax				; save input in the bottom of the stack, mark as #1
 
+.main_loop:
+
+    cmp eax, 0				; compare input integer and 0
+    je .done_main			; exit program if value is 0
+
+							; begin calculating
+	mov edx, ebp			; get stack base
+	sub edx, 4				; get address of input vale
+    cmp dword [edx], 1		; compare input value with 1
+    jne .not_1				; jump to other cases if not 1
+    jmp .not_prime			; goto not prime is it'1
+
+.not_1:
+
+    mov eax, 1				; assign is_prime = true
+	push eax				; save is_prime in stack, mark as #2
+    mov eax, 2				; assign i = 2
+	push eax				; save i in stack, mark as #3
+
+.loop:
+
+	mul eax					; get value of i*i and save in edx(higher) and eax(lower)
+	mov ebx, ebp			; get stack base
+	sub ebx, 4				; get address of input value save in ebx
+	test edx, edx			; test the value of edx
+	jnz .break_loop			; if higher 32 bits of i*i is not 0, break loop
+	cmp [ebx], eax			; compare lower 32 bits of i*i with input value
+	pop ebx					; clear i which is not needed anymore
+    jb .break_loop			; resault found if the input is lower than i*i, break loop
+							; start iteration
+	mov ebx, ebp			; get stack base
+	sub ebx, 4				; get address of input save in ebx
+	mov ecx, ebx			; copy address of input into ecx
+	sub ecx, 8				; get address of i
+	mov eax, [ebx]			; save input value in eax
+	xor edx, edx			; clear edx
+	div dword [ecx]				; divide input by i
+	test edx, edx			; test the value of remainder
+    jnz .not_div			; jump if remainder is not 0
+	pop ebx					; pop i out of stack and save in ebx
+	pop ecx					; pop is_prime out and save in ecx
+	mov ecx, 0				; make is_prime false
+	push ecx				; save is_prime, mark as #2
+	jmp .break_loop			; result found and break out of loop
+
+.not_div:
+
+	pop eax					; pop i out into eax
+	inc eax					; increase eax by 1
+	push eax				; save into stack, mark as #3
+    jmp .loop				; jump back to calculate again
+
+.break_loop:
+
+	pop ebx					; get result from stack
+    jz .not_prime			; if result is false, go to not prime block
+    call print_prime		; print prime is result is true
+    jmp .done_prime			; finish with current input
+
+.not_prime:
+
+	call print_not_prime;
+
+.done_prime:
+
+	mov esp, ebp			; clear the stack
+    call read_integer		; read integer and save to eax
+	push eax				; save input in the bottom of the stack, mark as #1
+
+	jmp .main_loop			; run program again
+
+.done_main:
+  
 	; exit
 	mov ebx, 0
 	mov eax, 1
